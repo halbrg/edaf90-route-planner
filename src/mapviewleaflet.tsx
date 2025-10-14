@@ -9,13 +9,13 @@ import {
 import L, { type LatLngExpression } from "leaflet";
 import "leaflet/dist/leaflet.css";
 
+// @ts-ignore
+delete L.Icon.Default.prototype._getIconUrl;
 L.Icon.Default.mergeOptions({
   iconRetinaUrl:
-    "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon-2x.png",
-  iconUrl:
-    "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon.png",
-  shadowUrl:
-    "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png",
+    "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png",
+  iconUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png",
+  shadowUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png",
 });
 
 interface FitBoundsProps {
@@ -32,7 +32,7 @@ const FitBounds = ({ points }: FitBoundsProps) => {
   useEffect(() => {
     if (points.length > 0) {
       const bounds = L.latLngBounds(points);
-      map.fitBounds(bounds, { padding: [50, 50] });
+      map.fitBounds(bounds);
     }
   }, [map, points]);
 
@@ -45,12 +45,13 @@ export default function MapWithRoutePoints({
   return (
     <MapContainer
       center={[55.708333, 13.199167]}
-      zoom={13}
-      style={{ height: "500px", width: "100%" }}
+      zoom={14}
+      style={{ height: "100vh", width: "100vw" }}
+      className=""
     >
       <TileLayer
-        attribution='&copy; <a href="https://www.openstreetmap.org/">OpenStreetMap</a>'
-        url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+        url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png"
+        attribution='&copy; <a href="https://carto.com/">CARTO</a> &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
       />
 
       {routePoints.length > 0 && (
@@ -58,7 +59,7 @@ export default function MapWithRoutePoints({
           <Marker position={routePoints[0]} />
           <Marker position={routePoints[routePoints.length - 1]} />
 
-          <Polyline positions={routePoints} color="blue" weight={5} />
+          <Polyline positions={routePoints} color="blue" />
 
           <FitBounds points={routePoints} />
         </>

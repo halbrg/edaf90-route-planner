@@ -2,17 +2,16 @@ import { useState } from "react";
 import MapWithRoutePoints from "./mapviewleaflet";
 import RouteSelection from "./route-selection"
 import type { Route } from "./routing";
-import type { Leg } from "./routing";
 import polyline from '@mapbox/polyline';
 
-function getRoutePoints(selectedRoute: Leg[]): [number, number][] {
+function getRoutePoints(route: Route | null): [number, number][] {
+if (!route) return [];
+
   const allPoints: [number, number][] = [];
 
-  selectedRoute.forEach((leg) => {
-    leg.legGeometry.forEach((geometry) => {
-      const decoded = polyline.decode(geometry.points);
-      allPoints.push(...decoded);
-    });
+  route.forEach((leg) => {
+    const decoded = polyline.decode(leg.legGeometry.points);
+    allPoints.push(...decoded);
   });
 
   return allPoints;
