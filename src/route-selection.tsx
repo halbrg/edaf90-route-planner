@@ -5,20 +5,19 @@ import { Label } from "./components/ui/label";
 import { Input } from "./components/ui/input";
 import { Button } from "./components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "./components/ui/popover";
-import { Command, CommandEmpty, CommandItem, CommandList } from "./components/ui/command";
 import { Calendar } from "./components/ui/calendar";
 import { Alert, AlertTitle } from "./components/ui/alert";
 import { ChevronDown, CircleAlert } from "lucide-react";
 import { Spinner } from "./components/ui/spinner";
 import { autocomplete, ensureFeatures, getPoints, search, type PeliasAutocompleteResponse, type Point, type SearchError } from "./geocoding";
-import { getLegs, planConnection, type Leg } from "./routing";
+import { extractRoutes, keyFromRoute, planConnection, timeFromScheduledTime, type Route } from "./routing";
 
 type RouteSelectionProps = {
-  selectedRoute: Leg[];
-  onRouteSelect: (route: Leg[]) => void;
+  selectedRoute: Route | null;
+  onRouteSelect: (route: Route | null) => void;
 };
 function RouteSelection(props: RouteSelectionProps) {
-  const [routes, setRoutes] = useState<Leg[][]>([]);
+  const [routes, setRoutes] = useState<Route[]>([]);
   const [loading, setLoading] = useState(false);
   const [hasSearched, setHasSearched] = useState(false);
   const [networkError, setNetworkError] = useState(false);
@@ -27,9 +26,12 @@ function RouteSelection(props: RouteSelectionProps) {
     setHasSearched(true);
     setLoading(true);
     planConnection(origin, destination, departure, time)
-      .then(getLegs)
+      .then(extractRoutes)
       .then(setRoutes)
-      .then(() => setNetworkError(false))
+      .then(() => {
+        setNetworkError(false);
+        props.onRouteSelect(null);
+      })
       .catch((err: Response) => {
         setNetworkError(true);
         console.error(`Error while fetching routes: ${err}`);
@@ -38,7 +40,7 @@ function RouteSelection(props: RouteSelectionProps) {
   };
 
   return (
-    <div className="w-full min-w-fit lg:w-fit lg:h-dvh">
+    <div className="flex flex-col w-full min-w-fit lg:w-fit lg:h-dvh">
       <TravelParameters onSearch={findRoutes} />
       <RouteList
         routes={routes}
@@ -80,7 +82,7 @@ function TravelParameters(props: TravelParametersProps) {
         setError(null);
       }).catch((err: SearchError) => {
         if (err.type == "network") {
-          setError("A network error has ocurred.");
+          setError("A network error has occurred.");
           console.error(`Error while fetching search results: ${err}`);
         } else if (err.type == "validation") {
           err.msg && setError(err.msg);
@@ -154,37 +156,29 @@ function AutocompletedSearch(props: AutocompletedSearchProps) {
         value != "" &&
         !autocompleteResults.find(result => result.value == value.trim())
       }
-      onOpenChange={setAutocompleteOpen}
-    >
+      onOpenChange={setAutocompleteOpen}>
       <PopoverTrigger className="w-full">
         <Input
           value={value}
           onChange={e => onChange(e.currentTarget.value)}
           placeholder={props.label}
           aria-haspopup={autocompleteOpen}
-          required
-        />
+          required />
       </PopoverTrigger>
       <PopoverContent
+        className="flex flex-col h-fit"
         onOpenAutoFocus={e => e.preventDefault()}
         onCloseAutoFocus={e => e.preventDefault()}
-        align="start"
-      >
-        <Command>
-          <CommandList>
-            <CommandEmpty>No results found.</CommandEmpty>
-            {autocompleteResults.map(result =>
-              <CommandItem
-                key={result.id}
-                value={result.value}
-                onSelect={value => {
-                  onChange(value);
-                  setAutocompleteOpen(false);
-                }}
-              >{result.value}</CommandItem>
-            )}
-          </CommandList>
-        </Command>
+        align="start">
+        {autocompleteResults.length == 0 ? <div>No results found.</div> :
+          autocompleteResults.map(result =>
+            <button
+              className="text-left h-8"
+              key={result.id}
+              onClick={() => {
+                onChange(result.value);
+                setAutocompleteOpen(false);
+              }}>{result.value}</button>)}
       </PopoverContent>
     </Popover>
   );
@@ -215,8 +209,7 @@ function DateTimeSelection(props: DateTimeSelectionProps) {
             onSelect={date => {
               date && props.onDateChange(date);
               setOpen(false);
-            }}
-          />
+            }} />
         </PopoverContent>
       </Popover>
       <Input
@@ -233,26 +226,105 @@ function DateTimeSelection(props: DateTimeSelectionProps) {
 }
 
 type RouteListProps = {
-  routes: Leg[][];
-  selectedRoute: Leg[];
-  onRouteSelect: (route: Leg[]) => void;
+  routes: Route[];
+  selectedRoute: Route | null;
+  onRouteSelect: (route: Route | null) => void;
   loading: boolean;
   hasSearched: boolean;
   networkError: boolean;
 };
 function RouteList(props: RouteListProps) {
+
+  if (props.networkError) {
+    return (<div className="flex justify-center items-center h-full">A network error has occurred.</div>);
+  }
+
+  if (props.loading) {
+    return (
+      <div className="flex justify-center items-center h-full">
+        <Spinner className="size-8" />
+      </div>
+    );
+  }
+
+  if (props.routes.length == 0) {
+    if (props.hasSearched) {
+      return (<div className="flex justify-center items-center h-full">No routes found.</div>);
+    }
+    return (<div className="flex justify-center items-center h-full"></div>);
+  }
+
   return (
-    <Command>
-      <CommandList>
-        <CommandEmpty>
-          {props.loading ?
-            <div className="flex justify-center">
-              <Spinner className="size-8" />
-            </div> : (props.networkError ? "A network error has ocurred." : (props.hasSearched ? "No routes found." : <></>))}
-        </CommandEmpty>
-      </CommandList>
-    </Command>
+    <div className="flex flex-col w-full gap-5 px-5 overflow-auto">
+      {props.routes.map(route =>
+        <RouteItem
+          key={keyFromRoute(route)}
+          route={route}
+          selected={route == props.selectedRoute}
+          onSelect={props.onRouteSelect} />)}
+    </div>
   );
+}
+
+type RouteItemProps = {
+  route: Route;
+  selected: boolean;
+  onSelect: (route: Route | null) => void;
+};
+function RouteItem(props: RouteItemProps) {
+  return (
+    <button
+      className="flex flex-row w-full justify-center h-35"
+      onClick={() => !props.selected ? props.onSelect(props.route) : props.onSelect(null)}>
+      {props.route[0].mode == "WALK" ?
+        <WalkSegment
+          time={
+            timeFromScheduledTime(
+              props.route[0]
+                .start
+                .scheduledTime)}
+          distance={props.route[0].distance} /> : <></>}
+      <TransitSegment route={props.route} />
+      {props.route[props.route.length - 1].mode == "WALK" ?
+        <WalkSegment
+          time={
+            timeFromScheduledTime(
+              props.route[props.route.length - 1]
+                .end
+                .scheduledTime)}
+          distance={props.route[props.route.length - 1].distance} /> : <></>}
+    </button>
+  );
+}
+
+type WalkSegmentProps = {
+  time: string;
+  distance: number;
+};
+function WalkSegment(props: WalkSegmentProps) {
+  return (
+    <div className="flex flex-col w-20">
+      <div>{props.time}</div>
+      <div>
+        {props.distance >= 1000 ?
+          `${(props.distance / 1000).toPrecision(2)} km` :
+          `${Math.round(props.distance)} m`
+        }
+      </div>
+      <div className="text-xs">there should be a guy here</div>
+    </div>
+  );
+}
+
+type TransitSegmentProps = {
+  route: Route;
+};
+function TransitSegment(props: TransitSegmentProps) {
+  return (
+    <div>
+    </div>
+  );
+
 }
 
 export default RouteSelection;

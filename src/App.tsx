@@ -1,10 +1,10 @@
 import { useState } from "react";
 import MapWithRoutePoints from "./mapviewleaflet";
 import RouteSelection from "./route-selection"
-import type { Leg } from "./routing";
+import type { Route } from "./routing";
 
 function App() {
-  const [selectedRoute, setSelectedRoute] = useState<Leg[]>([]);
+  const [selectedRoute, setSelectedRoute] = useState<Route | null>(null);
   
   return (
     <div className="flex flex-col lg:flex-row">
