@@ -13,7 +13,11 @@ import { Spinner } from "./components/ui/spinner";
 import { autocomplete, ensureFeatures, getPoints, search, type PeliasAutocompleteResponse, type Point, type SearchError } from "./geocoding";
 import { getLegs, planConnection, type Leg } from "./routing";
 
-function RouteSelection() {
+type RouteSelectionProps = {
+  selectedRoute: Leg[];
+  onRouteSelect: (route: Leg[]) => void;
+};
+function RouteSelection(props: RouteSelectionProps) {
   const [routes, setRoutes] = useState<Leg[][]>([]);
   const [loading, setLoading] = useState(false);
   const [hasSearched, setHasSearched] = useState(false);
@@ -36,7 +40,13 @@ function RouteSelection() {
   return (
     <div className="w-full min-w-fit lg:w-fit lg:h-dvh">
       <TravelParameters onSearch={findRoutes} />
-      <RouteList routes={routes} loading={loading} hasSearched={hasSearched} networkError={networkError} />
+      <RouteList
+        routes={routes}
+        selectedRoute={props.selectedRoute}
+        onRouteSelect={props.onRouteSelect}
+        loading={loading}
+        hasSearched={hasSearched}
+        networkError={networkError} />
     </div>
   );
 }
@@ -223,7 +233,9 @@ function DateTimeSelection(props: DateTimeSelectionProps) {
 }
 
 type RouteListProps = {
-  routes: {}[];
+  routes: Leg[][];
+  selectedRoute: Leg[];
+  onRouteSelect: (route: Leg[]) => void;
   loading: boolean;
   hasSearched: boolean;
   networkError: boolean;
