@@ -4,68 +4,109 @@ import { Switch } from "./components/ui/switch";
 import { Label } from "./components/ui/label";
 import { Input } from "./components/ui/input";
 import { Button } from "./components/ui/button";
-import { PELIAS_URL } from "./config";
 import { Popover, PopoverContent, PopoverTrigger } from "./components/ui/popover";
 import { Command, CommandEmpty, CommandItem, CommandList } from "./components/ui/command";
 import { Calendar } from "./components/ui/calendar";
 import { Alert, AlertTitle } from "./components/ui/alert";
+import { ChevronDown, CircleAlert } from "lucide-react";
+import { Spinner } from "./components/ui/spinner";
+import { autocomplete, ensureFeatures, getPoints, search, type PeliasAutocompleteResponse, type Point, type SearchError } from "./geocoding";
+import { getLegs, planConnection, type Leg } from "./routing";
 
 function RouteSelection() {
+  const [routes, setRoutes] = useState<Leg[][]>([]);
+  const [loading, setLoading] = useState(false);
+  const [hasSearched, setHasSearched] = useState(false);
+  const [networkError, setNetworkError] = useState(false);
+
+  const findRoutes = (origin: Point, destination: Point, departure: boolean, time: Date) => {
+    setHasSearched(true);
+    setLoading(true);
+    planConnection(origin, destination, departure, time)
+      .then(getLegs)
+      .then(setRoutes)
+      .then(() => setNetworkError(false))
+      .catch((err: Response) => {
+        setNetworkError(true);
+        console.error(`Error while fetching routes: ${err}`);
+      })
+      .finally(() => setLoading(false));
+  };
+
   return (
-    <div>
-      <TravelParameters />
-      <RouteList />
+    <div className="w-full min-w-fit lg:w-fit lg:h-dvh">
+      <TravelParameters onSearch={findRoutes} />
+      <RouteList routes={routes} loading={loading} hasSearched={hasSearched} networkError={networkError} />
     </div>
   );
 }
 
-type PeliasAutocompleteResponse = {
-  features: {
-    properties: {
-      id: string,
-      name: string,
-      county: string,
-    }
-  }[],
+type TravelParametersProps = {
+  onSearch: (origin: Point, destination: Point, departure: boolean, time: Date) => void;
 };
-
-function TravelParameters() {
+function TravelParameters(props: TravelParametersProps) {
   const [departure, setDeparture] = useState(true);
+
   const [origin, setOrigin] = useState("");
   const [destination, setDestination] = useState("");
+
   const [date, setDate] = useState(new Date());
-  const [time, setTime] = useState(`${date.getHours()}:${date.getMinutes()}`);
+  const [time, setTime] = useState(date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }));
+
+  const [error, setError] = useState<string | null>(null);
 
 
   const onSubmit = (e: FormEvent) => {
     e.preventDefault();
+
+    const originRequest = search(origin);
+    const destinationRequest = search(destination);
+
+    Promise.all([originRequest, destinationRequest])
+      .then(ensureFeatures)
+      .then(getPoints)
+      .then(({ origin, destination }: { origin: Point, destination: Point }) => {
+        props.onSearch(origin, destination, departure, new Date(`${date.toLocaleDateString("sv")} ${time}`)); // Ugly hack to copy date and time at once.
+        setError(null);
+      }).catch((err: SearchError) => {
+        if (err.type == "network") {
+          setError("A network error has ocurred.");
+          console.error(`Error while fetching search results: ${err}`);
+        } else if (err.type == "validation") {
+          err.msg && setError(err.msg);
+        }
+      });
   };
 
   const departureId = useId();
 
   return (
     <form className="p-5" onSubmit={onSubmit}>
-      <Alert className="mb-5">
-        <AlertTitle>kurwa error</AlertTitle>
-      </Alert>
-      <div className="flex flex-col">
+      {error ?
+        <Alert className="mb-5" variant="destructive">
+          <CircleAlert />
+          <AlertTitle>{error}</AlertTitle>
+        </Alert>
+        : <></>}
+      <div className="flex flex-col gap-5">
         <AutocompletedSearch label="From" onChange={setOrigin} />
         <AutocompletedSearch label="To" onChange={setDestination} />
-        <div className="flex flex-row items-center">
-          <div className="flex flex-row items-center mr-10">
-            <Switch className="mr-5" id={departureId} checked={departure} onCheckedChange={setDeparture} />
-            <Label htmlFor={departureId}>{departure ? "Departure" : "Arrival"}</Label>
+        <div className="flex flex-col gap-5 lg:flex-row lg:gap-10">
+          <div className="flex flex-row items-center">
+            <Switch className="mr-2" id={departureId} checked={departure} onCheckedChange={setDeparture} />
+            <Label className="w-full h-fit lg:w-20" htmlFor={departureId}>{departure ? "Departure" : "Arrival"}</Label>
           </div>
           <DateTimeSelection date={date} onDateChange={setDate} time={time} onTimeChange={setTime} />
-          <Button type="submit" className="float-right">Search</Button>
         </div>
+        <Button className="self-end w-full lg:w-35" type="submit">Search</Button>
       </div>
     </form>
   );
 }
 
+
 type AutocompletedSearchProps = {
-  label: string,
+  label: string;
   onChange: (value: string) => void;
 };
 function AutocompletedSearch(props: AutocompletedSearchProps) {
@@ -85,86 +126,65 @@ function AutocompletedSearch(props: AutocompletedSearchProps) {
 
   useEffect(() => {
     if (throttledValue) {
-      fetch(PELIAS_URL + "/autocomplete?" + new URLSearchParams({
-        text: throttledValue,
-        layers: "venue,address",
-        size: "5",
-        lang: "sv",
-        "boundary.gid": "whosonfirst:region:85688377", // Keep searches contained within Skåne
-        "focus.point.lat": "55.7029296", // Focus on Lund
-        "focus.point.lon": "13.1929449",
-      }).toString())
-        .then(res => {
-          if (res.ok) {
-            return res.json();
-          } else {
-            throw res;
-          }
-        })
+      autocomplete(throttledValue)
         .then((data: PeliasAutocompleteResponse) => {
-          setAutocompleteResults(
-            data.features.map(feature => {
-              return {
-                value: `${feature.properties.name}, ${feature.properties.county}`,
-                id: feature.properties.id
-              };
-            })
-          );
-        })
+          setAutocompleteResults(data.features.map(feature => { return { value: `${feature.properties.name}, ${feature.properties.county}`, id: feature.properties.id }; }));
+        }, (err: Response) => {
+          console.error(`Error while fetching autocomplete results: ${err}`);
+        });
     } else {
       setAutocompleteResults([]);
     }
   }, [throttledValue]);
 
   return (
-    <div className="mb-5">
-      <Popover
-        open={
-          autocompleteOpen &&
-          value != "" &&
-          !autocompleteResults.find(result => result.value == value.trim())
-        }
-        onOpenChange={setAutocompleteOpen}
+    <Popover
+      open={
+        autocompleteOpen &&
+        value != "" &&
+        !autocompleteResults.find(result => result.value == value.trim())
+      }
+      onOpenChange={setAutocompleteOpen}
+    >
+      <PopoverTrigger className="w-full">
+        <Input
+          value={value}
+          onChange={e => onChange(e.currentTarget.value)}
+          placeholder={props.label}
+          aria-haspopup={autocompleteOpen}
+          required
+        />
+      </PopoverTrigger>
+      <PopoverContent
+        onOpenAutoFocus={e => e.preventDefault()}
+        onCloseAutoFocus={e => e.preventDefault()}
+        align="start"
       >
-        <PopoverTrigger className="w-full">
-          <Input
-            value={value}
-            onChange={e => onChange(e.currentTarget.value)}
-            placeholder={props.label}
-            aria-haspopup={autocompleteOpen}
-          />
-        </PopoverTrigger>
-        <PopoverContent
-          onOpenAutoFocus={e => e.preventDefault()}
-          onCloseAutoFocus={e => e.preventDefault()}
-          align="start"
-        >
-          <Command>
-            <CommandList>
-              <CommandEmpty>No results found.</CommandEmpty>
-              {autocompleteResults.map(result =>
-                <CommandItem
-                  key={result.id}
-                  value={result.value}
-                  onSelect={value => {
-                    onChange(value);
-                    setAutocompleteOpen(false);
-                  }}
-                >{result.value}</CommandItem>
-              )}
-            </CommandList>
-          </Command>
-        </PopoverContent>
-      </Popover>
-    </div>
+        <Command>
+          <CommandList>
+            <CommandEmpty>No results found.</CommandEmpty>
+            {autocompleteResults.map(result =>
+              <CommandItem
+                key={result.id}
+                value={result.value}
+                onSelect={value => {
+                  onChange(value);
+                  setAutocompleteOpen(false);
+                }}
+              >{result.value}</CommandItem>
+            )}
+          </CommandList>
+        </Command>
+      </PopoverContent>
+    </Popover>
   );
 }
 
 type DateTimeSelectionProps = {
-  date: Date,
-  onDateChange: (date: Date) => void,
-  time: string,
-  onTimeChange: (time: string) => void
+  date: Date;
+  onDateChange: (date: Date) => void;
+  time: string;
+  onTimeChange: (time: string) => void;
 };
 function DateTimeSelection(props: DateTimeSelectionProps) {
   const [open, setOpen] = useState(false);
@@ -172,8 +192,11 @@ function DateTimeSelection(props: DateTimeSelectionProps) {
   return (
     <div className="flex flex-row">
       <Popover open={open} onOpenChange={setOpen}>
-        <PopoverTrigger asChild>
-          <Button>{props.date.toLocaleDateString()}</Button>
+        <PopoverTrigger className="mr-2 w-2/3 lg:w-30" asChild>
+          <Button>
+            {props.date.toLocaleDateString("sv")}
+            <ChevronDown />
+          </Button>
         </PopoverTrigger>
         <PopoverContent>
           <Calendar
@@ -186,15 +209,37 @@ function DateTimeSelection(props: DateTimeSelectionProps) {
           />
         </PopoverContent>
       </Popover>
-      <Input type="time" value={props.time} onChange={e => props.onTimeChange(e.currentTarget.value)} />
+      <Input
+        className="w-1-3 text-center lg:w-20"
+        type="time"
+        value={props.time}
+        onChange={e => {
+          if (e.currentTarget.value.length == 5) {
+            props.onTimeChange(e.currentTarget.value)
+          }
+        }} />
     </div>
   );
 }
 
-function RouteList() {
+type RouteListProps = {
+  routes: {}[];
+  loading: boolean;
+  hasSearched: boolean;
+  networkError: boolean;
+};
+function RouteList(props: RouteListProps) {
   return (
-    <ul>
-    </ul>
+    <Command>
+      <CommandList>
+        <CommandEmpty>
+          {props.loading ?
+            <div className="flex justify-center">
+              <Spinner className="size-8" />
+            </div> : (props.networkError ? "A network error has ocurred." : (props.hasSearched ? "No routes found." : <></>))}
+        </CommandEmpty>
+      </CommandList>
+    </Command>
   );
 }
 
