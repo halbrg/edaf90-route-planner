@@ -15,6 +15,7 @@ query Trip($origin: PlanCoordinateInput, $destination: PlanCoordinateInput, $tim
     edges {
       node {
         legs {
+          id
           legGeometry {
             points
           }
@@ -50,7 +51,7 @@ type Leg = {
   to: Point;
   legGeometry: {
     points: string;
-  }[];
+  };
   distance: number;
   mode:
   "AIRPLANE" |
@@ -80,6 +81,8 @@ type Leg = {
     scheduledTime: string;
   };
 };
+
+type Route = Leg[];
 
 async function planConnection(origin: Point, destination: Point, departure: boolean, time: Date) {
   return fetch(OPENTRIPPLANNER_URL, {
@@ -114,13 +117,25 @@ async function planConnection(origin: Point, destination: Point, departure: bool
   });
 }
 
-function getLegs(connection: PlanConnection) {
+function extractRoutes(connection: PlanConnection) {
   return connection.data.planConnection.edges.map(edge => edge.node.legs);
+}
+
+function keyFromRoute(route: Route) {
+  const distance = route.map(leg => leg.distance).reduce((prev, current) => prev + current, 0);
+  return `${route[0].start.scheduledTime} ${distance} ${route[route.length - 1].end.scheduledTime}`;
+}
+
+function timeFromScheduledTime(scheduledTime: string) {
+  return new Date(scheduledTime).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit"});
 }
 
 export {
   type PlanConnection,
   type Leg,
+  type Route,
   planConnection,
-  getLegs
+  extractRoutes,
+  keyFromRoute,
+  timeFromScheduledTime
 };
