@@ -7,7 +7,7 @@ import {
   useMap,
 } from "react-leaflet";
 import L, { type LatLngExpression } from "leaflet";
-import 'leaflet/dist/leaflet.css';
+import "leaflet/dist/leaflet.css";
 
 L.Icon.Default.mergeOptions({
   iconRetinaUrl:
@@ -17,7 +17,6 @@ L.Icon.Default.mergeOptions({
   shadowUrl:
     "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png",
 });
-
 
 interface FitBoundsProps {
   points: LatLngExpression[];
@@ -43,16 +42,9 @@ const FitBounds = ({ points }: FitBoundsProps) => {
 export default function MapWithRoutePoints({
   routePoints,
 }: MapWithRoutePointsProps) {
-  if (!routePoints || routePoints.length === 0) {
-    return <div>No route points provided.</div>;
-  }
-
-  const start = routePoints[0];
-  const end = routePoints[routePoints.length - 1];
-
   return (
     <MapContainer
-      center={start}
+      center={[55.708333, 13.199167]}
       zoom={13}
       style={{ height: "500px", width: "100%" }}
     >
@@ -61,12 +53,16 @@ export default function MapWithRoutePoints({
         url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
       />
 
-      <Marker position={start} />
-      <Marker position={end} />
+      {routePoints.length > 0 && (
+        <>
+          <Marker position={routePoints[0]} />
+          <Marker position={routePoints[routePoints.length - 1]} />
 
-      <Polyline positions={routePoints} color="blue" weight={5} />
+          <Polyline positions={routePoints} color="blue" weight={5} />
 
-      <FitBounds points={routePoints} />
+          <FitBounds points={routePoints} />
+        </>
+      )}
     </MapContainer>
   );
 }
