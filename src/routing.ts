@@ -5,19 +5,38 @@ import type { Point } from "./geocoding";
 
 // GraphQL is very nice.
 const tripQuery = `
-query Trip($origin: PlanCoordinateInput, $destination: PlanCoordinateInput, $time: PlanDateTimeInput) {
+query Trip($origin: PlanLabeledLocationInput!, $destination: PlanLabeledLocationInput!, $time: PlanDateTimeInput) {
   planConnection(
-    origin: {label: "Start", location: {coordinate: $origin}}
-    destination: {label: "End", location: {coordinate: $destination}}
+    origin: $origin
+    destination: $destination
     searchWindow: "24h"
     dateTime: $time
   ) {
     edges {
       node {
         legs {
-          id
+          from {
+            name
+            lon
+            lat
+            stop {
+              platformCode
+            }
+          }
+          to {
+            name
+            lon
+            lat
+            stop {
+              platformCode
+            }
+          }
           legGeometry {
             points
+          }
+          route {
+            desc
+            shortName
           }
           distance
           mode
@@ -47,10 +66,28 @@ type PlanConnection = {
 };
 
 type Leg = {
-  from: Point;
-  to: Point;
+  from: {
+    name: string;
+    lon: number;
+    lat: number;
+    stop: {
+      platformCode: string;
+    };
+  };
+  to: {
+    name: string;
+    lon: number;
+    lat: number;
+    stop?: {
+      platformCode: string;
+    };
+  };
   legGeometry: {
     points: string;
+  };
+  route?: {
+    desc: string;
+    shortName: string;
   };
   distance: number;
   mode:
@@ -96,12 +133,22 @@ async function planConnection(origin: Point, destination: Point, departure: bool
       query: tripQuery,
       variables: {
         origin: {
-          latitude: origin.lat,
-          longitude: origin.lon,
+          label: origin.label,
+          location: {
+            coordinate: {
+              latitude: origin.lat,
+              longitude: origin.lon,
+            }
+          }
         },
         destination: {
-          latitude: destination.lat,
-          longitude: destination.lon
+          label: destination.label,
+          location: {
+            coordinate: {
+              latitude: destination.lat,
+              longitude: destination.lon
+            }
+          }
         },
         time: {
           [departure ? "earliestDeparture" : "latestArrival"]: time.toISOString()

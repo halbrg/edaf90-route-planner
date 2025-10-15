@@ -14,7 +14,10 @@ type PeliasSearchResponse = {
   features: {
     geometry: {
       coordinates: number[];
-    }
+    };
+    properties: {
+      name: string;
+    };
   }[];
   geocoding: {
     query: {
@@ -30,6 +33,7 @@ type SearchError = {
 };
 
 type Point = {
+  label: string;
   lon: number;
   lat: number;
 };
@@ -58,7 +62,6 @@ async function search(text: string) {
 }
 
 async function autocomplete(text: string) {
-
   return fetch(PELIAS_URL + "/autocomplete?" + new URLSearchParams({
     text: text,
     layers: "venue,address",
@@ -102,10 +105,13 @@ function ensureFeatures([origin, destination]: PeliasSearchResponse[]) {
 
 function getPoints([origin, destination]: PeliasSearchResponse[]) {
   const [originLon, originLat] = origin.features[0].geometry.coordinates;
+  const originLabel = origin.features[0].properties.name;
+
   const [destinationLon, destinationLat] = destination.features[0].geometry.coordinates;
+  const destinationLabel = destination.features[0].properties.name;
   return {
-    origin: { lon: originLon, lat: originLat },
-    destination: { lon: destinationLon, lat: destinationLat }
+    origin: { label: originLabel, lon: originLon, lat: originLat },
+    destination: { label: destinationLabel, lon: destinationLon, lat: destinationLat }
   };
 }
 
