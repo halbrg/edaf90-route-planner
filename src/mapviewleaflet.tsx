@@ -5,18 +5,17 @@ import {
   Marker,
   Polyline,
   useMap,
+  Popup,
 } from "react-leaflet";
 import L, { type LatLngExpression } from "leaflet";
 import "leaflet/dist/leaflet.css";
 import { getColorForMode } from "./getroutepoints";
+import pin from "./images/circleIcon.png";
 
-// @ts-ignore
-delete L.Icon.Default.prototype._getIconUrl;
-L.Icon.Default.mergeOptions({
-  iconRetinaUrl:
-    "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png",
-  iconUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png",
-  shadowUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png",
+const pinIcon = L.icon({
+  iconUrl: pin,
+  iconSize: [20, 20],
+  popupAnchor: [0, -40],
 });
 
 interface MapWithRoutePointsProps {
@@ -59,13 +58,17 @@ export default function MapWithRoutePoints({
       >
         <TileLayer
           url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png"
-          attribution='&copy; <a href="https://carto.com/">CARTO</a> &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+          attribution='&copy; <a href="https://carto.com/">CARTO</a> &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> | <a href="https://www.flaticon.com/free-icons/unisex" title="unisex icons">Unisex icons created by Freepik - Flaticon</a>'
         />
 
         {routeSegments.length > 0 && (
           <>
-            <Marker position={allPoints[0]} />
-            <Marker position={allPoints[allPoints.length - 1]} />
+            <Marker position={allPoints[0]} icon={pinIcon}>
+              <Popup>Your starting position</Popup>
+            </Marker>
+            <Marker position={allPoints[allPoints.length - 1]} icon={pinIcon}>
+              <Popup>Your destination</Popup>
+            </Marker>
 
             {routeSegments.map((segment, index) => (
               <Polyline
