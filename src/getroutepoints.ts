@@ -1,42 +1,31 @@
 import polyline from "@mapbox/polyline";
 import type { Route } from "./routing";
 
-function getRoutePoints(route: Route | null): [number, number][] {
+function getRouteSegments(route: Route | null) {
   if (!route) return [];
 
-  const allPoints: [number, number][] = [];
-
-  route.forEach((leg) => {
+  return route.map((leg) => {
     const decoded = polyline.decode(leg.legGeometry.points);
-    allPoints.push(...decoded);
+    return {
+      mode: leg.mode,
+      points: decoded,
+    };
   });
-
-  return allPoints;
 }
 
-function getRouteColor(route: Route | null): string {
-  if (!route) return "";
-  let currentColor: string = "";
-
-  route.forEach((leg) => {
-    switch (leg.mode) {
-      case "BUS":
-        currentColor = "green";
-        break;
-      case "RAIL":
-        currentColor = "red";
-        break;
-      case "TRAM":
-        currentColor = "gray";
-        break;
-      case "WALK":
-        currentColor = "black";
-        break;
-      default:
-        currentColor = "blue";
-    }
-  });
-  return currentColor;
+function getColorForMode(mode: string): string {
+  switch (mode) {
+    case "BUS":
+      return "green";
+    case "RAIL":
+      return "red";
+    case "TRAM":
+      return "gray";
+    case "WALK":
+      return "black";
+    default:
+      return "blue";
+  }
 }
 
-export { getRoutePoints, getRouteColor };
+export { getRouteSegments, getColorForMode };
