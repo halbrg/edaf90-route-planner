@@ -12,6 +12,7 @@ import { Spinner } from "./components/ui/spinner";
 import { autocomplete, ensureFeatures, getPoints, search, type PeliasAutocompleteResponse, type Point, type SearchError } from "./geocoding";
 import { extractRoutes, keyFromRoute, planConnection, timeFromScheduledTime, type Route } from "./routing";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "./components/ui/collapsible";
+import { Separator } from "./components/ui/separator";
 
 type RouteSelectionProps = {
   selectedRoute: Route | null;
@@ -43,6 +44,7 @@ function RouteSelection(props: RouteSelectionProps) {
   return (
     <div className="flex flex-col w-full min-w-120 lg:w-fit lg:h-dvh">
       <TravelParameters onSearch={findRoutes} />
+      <Separator />
       <RouteList
         routes={routes}
         selectedRoute={props.selectedRoute}
@@ -94,7 +96,7 @@ function TravelParameters(props: TravelParametersProps) {
   const departureId = useId();
 
   return (
-    <form className="p-5 px-8" onSubmit={onSubmit}>
+    <form className="p-8" onSubmit={onSubmit}>
       {error ?
         <Alert className="mb-5" variant="destructive">
           <CircleAlert />
@@ -111,7 +113,7 @@ function TravelParameters(props: TravelParametersProps) {
           </div>
           <DateTimeSelection date={date} onDateChange={setDate} time={time} onTimeChange={setTime} />
         </div>
-        <Button className="self-end w-full lg:w-35" type="submit">Search</Button>
+        <Button className="w-full" type="submit">Search</Button>
       </div>
     </form>
   );
@@ -174,7 +176,7 @@ function AutocompletedSearch(props: AutocompletedSearchProps) {
         {autocompleteResults.length == 0 ? <div>No results found.</div> :
           autocompleteResults.map(result =>
             <button
-              className="text-left min-h-8"
+              className="text-left min-h-8 pb-4"
               key={result.id}
               onClick={() => {
                 onChange(result.value);
@@ -256,7 +258,7 @@ function RouteList(props: RouteListProps) {
   }
 
   return (
-    <div className="flex flex-col w-full gap-5 px-5 overflow-auto">
+    <div className="flex flex-col w-full gap-5 pt-5 px-5 overflow-auto">
       {props.routes.map(route =>
         <RouteItem
           key={keyFromRoute(route)}
@@ -416,7 +418,7 @@ function TransitSegment(props: TransitSegmentProps) {
       <div className="flex flex-row">
         <div className="flex flex-col items-start w-fit">
           <span className="text-lg">{timeFromScheduledTime(firstTransit.start.scheduledTime)}</span>
-          <span className="text-sm">{firstTransit.from.name}{firstTransit.from.stop && `, ${firstTransit.mode == "BUS" ? "Position" : "Track"} ${firstTransit.from.stop.platformCode}`}</span>
+          <span className="text-sm">{firstTransit.from.name}{firstTransit.from.stop && `, ${firstTransit.mode != "RAIL" ? "Position" : "Track"} ${firstTransit.from.stop.platformCode}`}</span>
         </div>
         <div className="flex flex-col items-end w-fit ml-auto">
           <span className="text-lg">{timeFromScheduledTime(lastTransit.end.scheduledTime)}</span>
