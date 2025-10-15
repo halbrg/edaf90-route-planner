@@ -7,7 +7,7 @@ import { Button } from "./components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "./components/ui/popover";
 import { Calendar } from "./components/ui/calendar";
 import { Alert, AlertTitle } from "./components/ui/alert";
-import { BusFront, ChevronDown, CircleAlert, Footprints, TrainFront, TramFront } from "lucide-react";
+import { BusFront, ChevronDown, CircleAlert, Clock, Footprints, TrainFront, TramFront } from "lucide-react";
 import { Spinner } from "./components/ui/spinner";
 import { autocomplete, ensureFeatures, getPoints, search, type PeliasAutocompleteResponse, type Point, type SearchError } from "./geocoding";
 import { duration, extractRoutes, keyFromRoute, planConnection, timeFromScheduledTime, type Mode, type Route } from "./routing";
@@ -424,7 +424,7 @@ function RouteDetails(props: RouteDetailsProps) {
     <div>
       {props.route.map(leg =>
         <div key={`${leg.start.scheduledTime} ${leg.end.scheduledTime}`}>
-          <div className="flex flex-row my-1">
+          <div className="flex flex-row my-2">
             <div className="text-xs w-10">{timeFromScheduledTime(leg.start.scheduledTime)}</div>
             <div>
               <div className="text-sm">
@@ -449,11 +449,15 @@ function RouteDetails(props: RouteDetailsProps) {
             </div>
           </div>
           {leg.mode != "WALK" &&
-            <div className="flex flex-row my-1">
+            <div className="flex flex-row mt-4 mb-2">
               <div className="text-xs w-10">{timeFromScheduledTime(leg.end.scheduledTime)}</div>
               <div>
                 <div className="text-sm">{leg.to.name}</div>
                 <div className="text-xs">{leg.mode != "RAIL" ? "Position" : "Track"} {leg.to.stop && leg.to.stop.platformCode}</div>
+                <div className="flex flex-row items-center text-xs">
+                  <Clock className="size-3" />
+                  <span className="ml-1">Travel time {duration(leg, leg)}</span>
+                </div>
               </div>
             </div>}
           <Separator />
