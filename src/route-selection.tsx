@@ -41,7 +41,7 @@ function RouteSelection(props: RouteSelectionProps) {
   };
 
   return (
-    <div className="flex flex-col w-full min-w-115 lg:w-fit lg:h-dvh">
+    <div className="flex flex-col w-full min-w-120 lg:w-fit lg:h-dvh">
       <TravelParameters onSearch={findRoutes} />
       <RouteList
         routes={routes}
@@ -94,7 +94,7 @@ function TravelParameters(props: TravelParametersProps) {
   const departureId = useId();
 
   return (
-    <form className="p-5" onSubmit={onSubmit}>
+    <form className="p-5 px-8" onSubmit={onSubmit}>
       {error ?
         <Alert className="mb-5" variant="destructive">
           <CircleAlert />
@@ -282,14 +282,14 @@ function RouteItem(props: RouteItemProps) {
           <TransitSegment route={props.route} />
         </CollapsibleTrigger>
         <CollapsibleContent>
-          hi
+          todo
         </CollapsibleContent>
       </Collapsible>
     );
   }
 
   return (
-    <Collapsible open={props.selected} onOpenChange={open => open ? props.onSelect(props.route) : props.onSelect(null)}>
+    <Collapsible open={props.selected} onOpenChange={open => props.onSelect(open ? props.route : null)}>
       <CollapsibleTrigger className="flex flex-row w-full justify-center">
         {firstLeg.mode == "WALK" &&
           <WalkSegment
