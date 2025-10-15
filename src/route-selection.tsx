@@ -418,7 +418,7 @@ function TransitSegment(props: TransitSegmentProps) {
       <div className="flex flex-row">
         <div className="flex flex-col items-start w-fit">
           <span className="text-lg">{timeFromScheduledTime(firstTransit.start.scheduledTime)}</span>
-          <span className="text-sm">{firstTransit.from.name}{firstTransit.from.stop && `, ${firstTransit.mode == "BUS" ? "Position" : "Track"} ${firstTransit.from.stop.platformCode}`}</span>
+          <span className="text-sm">{firstTransit.from.name}{firstTransit.from.stop && `, ${firstTransit.mode != "RAIL" ? "Position" : "Track"} ${firstTransit.from.stop.platformCode}`}</span>
         </div>
         <div className="flex flex-col items-end w-fit ml-auto">
           <span className="text-lg">{timeFromScheduledTime(lastTransit.end.scheduledTime)}</span>
