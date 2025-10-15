@@ -21,6 +21,7 @@ query Trip($origin: PlanLabeledLocationInput!, $destination: PlanLabeledLocation
             lat
             stop {
               platformCode
+              vehicleMode
             }
           }
           to {
@@ -29,6 +30,7 @@ query Trip($origin: PlanLabeledLocationInput!, $destination: PlanLabeledLocation
             lat
             stop {
               platformCode
+              vehicleMode
             }
           }
           legGeometry {
@@ -53,44 +55,7 @@ query Trip($origin: PlanLabeledLocationInput!, $destination: PlanLabeledLocation
 }
 `;
 
-type PlanConnection = {
-  data: {
-    planConnection: {
-      edges: {
-        node: {
-          legs: Leg[]
-        };
-      }[];
-    };
-  };
-};
-
-type Leg = {
-  from: {
-    name: string;
-    lon: number;
-    lat: number;
-    stop: {
-      platformCode: string;
-    };
-  };
-  to: {
-    name: string;
-    lon: number;
-    lat: number;
-    stop?: {
-      platformCode: string;
-    };
-  };
-  legGeometry: {
-    points: string;
-  };
-  route?: {
-    desc: string;
-    shortName: string;
-  };
-  distance: number;
-  mode:
+type Mode =
   "AIRPLANE" |
   "BICYCLE" |
   "BUS" |
@@ -111,6 +76,47 @@ type Leg = {
   "TRANSIT" |
   "TROLLEYBUS" |
   "WALK";
+
+type PlanConnection = {
+  data: {
+    planConnection: {
+      edges: {
+        node: {
+          legs: Leg[]
+        };
+      }[];
+    };
+  };
+};
+
+type Leg = {
+  from: {
+    name: string;
+    lon: number;
+    lat: number;
+    stop: {
+      platformCode: string;
+      vehicleMode: Mode;
+    };
+  };
+  to: {
+    name: string;
+    lon: number;
+    lat: number;
+    stop?: {
+      platformCode: string;
+      vehicleMode: Mode;
+    };
+  };
+  legGeometry: {
+    points: string;
+  };
+  route?: {
+    desc: string;
+    shortName: string;
+  };
+  distance: number;
+  mode: Mode;
   start: {
     scheduledTime: string;
   };
@@ -174,7 +180,7 @@ function keyFromRoute(route: Route) {
 }
 
 function timeFromScheduledTime(scheduledTime: string) {
-  return new Date(scheduledTime).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit"});
+  return new Date(scheduledTime).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
 }
 
 function duration(start: Leg, end: Leg) {
@@ -182,23 +188,17 @@ function duration(start: Leg, end: Leg) {
   const endTime = new Date(end.end.scheduledTime).getTime();
   let elapsed = endTime - startTime;
 
-  let days = 0;
-  while (elapsed >= (24 * 60 * 60 * 1000)) {
-    days += 1;
-    elapsed -= (24 * 60 * 60 * 1000);
-  }
+  const days = Math.floor(elapsed / (24 * 60 * 60 * 1000));
+  elapsed -= days * (24 * 60 * 60 * 1000);
 
-  let hours = 0;
-  while (elapsed >= (60 * 60 * 1000)) {
-    hours += 1;
-    elapsed -= (60 * 60 * 1000);
-  }
+  const hours = Math.floor(elapsed / (60 * 60 * 1000));
+  elapsed -= hours * (60 * 60 * 1000);
 
-  let minutes = 0;
-  while (elapsed >= (60 * 1000)) {
-    minutes += 1;
-    elapsed -= (60 * 1000);
-  }
+  const minutes = Math.floor(elapsed / (60 * 1000));
+  elapsed -= minutes * (60 * 1000);
+
+  const seconds = Math.floor(elapsed / 1000);
+  elapsed -= seconds * 1000;
 
   let duration = "";
   if (days > 0) {
@@ -216,6 +216,9 @@ function duration(start: Leg, end: Leg) {
     }
     duration += `${minutes} min`;
   }
+  if (seconds > 0 && minutes == 0) {
+    duration += `${seconds} sec`;
+  }
 
   return duration;
 }
@@ -224,6 +227,7 @@ export {
   type PlanConnection,
   type Leg,
   type Route,
+  type Mode,
   planConnection,
   extractRoutes,
   keyFromRoute,

@@ -1,4 +1,4 @@
-import { useEffect, useId, useMemo, useState, type FormEvent } from "react";
+import { useEffect, useId, useMemo, useState, type FormEvent, type ReactElement } from "react";
 import { throttle } from "lodash";
 import { Switch } from "./components/ui/switch";
 import { Label } from "./components/ui/label";
@@ -10,7 +10,7 @@ import { Alert, AlertTitle } from "./components/ui/alert";
 import { BusFront, ChevronDown, CircleAlert, Footprints, TrainFront, TramFront } from "lucide-react";
 import { Spinner } from "./components/ui/spinner";
 import { autocomplete, ensureFeatures, getPoints, search, type PeliasAutocompleteResponse, type Point, type SearchError } from "./geocoding";
-import { duration, extractRoutes, keyFromRoute, planConnection, timeFromScheduledTime, type Route } from "./routing";
+import { duration, extractRoutes, keyFromRoute, planConnection, timeFromScheduledTime, type Mode, type Route } from "./routing";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "./components/ui/collapsible";
 import { Separator } from "./components/ui/separator";
 
@@ -261,7 +261,7 @@ function RouteList(props: RouteListProps) {
   }
 
   return (
-    <div className="flex flex-col w-full h-full gap-5 pt-5 px-5 overflow-auto">
+    <div className="flex flex-col w-full h-full gap-2 pt-5 px-5 overflow-auto">
       {props.routes.map(route =>
         <RouteItem
           key={keyFromRoute(route)}
@@ -278,48 +278,58 @@ type RouteItemProps = {
   onSelect: (route: Route | null) => void;
 };
 function RouteItem(props: RouteItemProps) {
+  return (
+    <Collapsible open={props.selected} onOpenChange={open => props.onSelect(open ? props.route : null)}>
+      <CollapsibleTrigger className="w-full cursor-pointer">
+        <RouteSummary route={props.route} />
+        <Separator className="mt-2 mx-2" />
+      </CollapsibleTrigger>
+      <CollapsibleContent className="px-4">
+        <RouteDetails route={props.route} />
+      </CollapsibleContent>
+    </Collapsible>
+  );
+}
+
+type RouteSummaryProps = {
+  route: Route;
+};
+function RouteSummary(props: RouteSummaryProps) {
   const firstLeg = props.route[0];
   const lastLeg = props.route[props.route.length - 1];
   if (firstLeg == lastLeg) {
-    return (
-      <Collapsible open={props.selected} onOpenChange={open => props.onSelect(open ? props.route : null)}>
-        <CollapsibleTrigger className="flex flex-row w-full justify-center cursor-pointer">
-          <TransitSegment route={props.route} />
-        </CollapsibleTrigger>
-        <CollapsibleContent>
-          <RouteDetails />
-        </CollapsibleContent>
-      </Collapsible>
-    );
+    return <TransitSegment route={props.route} />;
   }
 
   return (
-    <Collapsible open={props.selected} onOpenChange={open => props.onSelect(open ? props.route : null)}>
-      <CollapsibleTrigger className="flex flex-row w-full justify-center cursor-pointer">
-        {firstLeg.mode == "WALK" &&
+    <div className="flex flex-row w-full justify-center">
+      {firstLeg.mode == "WALK" &&
+        <div className="flex mr-2 py-1">
           <WalkSegment
             time={
               timeFromScheduledTime(
                 firstLeg
                   .start
                   .scheduledTime)}
-            distance={firstLeg.distance} />}
-        <TransitSegment route={props.route} />
-        {lastLeg.mode == "WALK" &&
+            distance={firstLeg.distance} />
+          <Separator orientation="vertical" />
+        </div>}
+      <TransitSegment route={props.route} />
+      {lastLeg.mode == "WALK" &&
+        <div className="flex ml-2 py-1">
+          <Separator orientation="vertical" />
           <WalkSegment
             time={
               timeFromScheduledTime(
                 props.route[props.route.length - 1]
                   .end
                   .scheduledTime)}
-            distance={props.route[props.route.length - 1].distance} />}
-      </CollapsibleTrigger>
-      <CollapsibleContent>
-        <RouteDetails />
-      </CollapsibleContent>
-    </Collapsible>
+            distance={props.route[props.route.length - 1].distance} />
+        </div>}
+    </div>
   );
 }
+
 
 type WalkSegmentProps = {
   time: string;
@@ -327,7 +337,7 @@ type WalkSegmentProps = {
 };
 function WalkSegment(props: WalkSegmentProps) {
   return (
-    <div className="flex flex-col w-20 p-1 items-center">
+    <div className="flex flex-col w-12 p-1 items-center">
       <div className="text-xs">{props.time}</div>
       <div className="text-xs">
         {props.distance >= 1000 ?
@@ -343,14 +353,14 @@ type TransitSegmentProps = {
   route: Route;
 };
 function TransitSegment(props: TransitSegmentProps) {
-  if (props.route.length == 1) {
+  if (props.route.length == 1 && props.route[0].mode == "WALK") {
     const leg = props.route[0];
     const time = duration(leg, leg);
-    
+
     return (
       <div className="w-full p-1 px-4 h-12">
         <div className="flex justify-between">
-          <span className="text-sm">{leg.from.name}</span> 
+          <span className="text-sm">{leg.from.name}</span>
           <span className="text-sm">{time}</span>
         </div>
         <div className="flex flex-row">
@@ -363,18 +373,22 @@ function TransitSegment(props: TransitSegmentProps) {
 
   const firstTransit = props.route.find(leg => leg.mode != "WALK");
   const lastTransit = props.route.findLast(leg => leg.mode != "WALK");
-  const transitLegs = props.route.filter(leg => leg.mode != "WALK");
+  const transitLegs = props.route.filter(leg =>
+    !(leg == props.route[0] && leg.mode == "WALK") &&
+    !(leg == props.route[props.route.length - 1] && leg.mode == "WALK"));
   if (!firstTransit || !lastTransit) {
     return null;
   }
-
   const time = duration(firstTransit, lastTransit);
+
   return (
     <div className="flex flex-col w-full h-20">
       <div className="flex flex-row">
         <div className="flex flex-col items-start w-fit">
           <span className="text-lg">{timeFromScheduledTime(firstTransit.start.scheduledTime)}</span>
-          <span className="text-sm">{firstTransit.from.name}{firstTransit.from.stop && `, ${firstTransit.mode != "RAIL" ? "Position" : "Track"} ${firstTransit.from.stop.platformCode}`}</span>
+          <span className="text-sm">
+            {firstTransit.from.name}, {firstTransit.mode != "RAIL" ? "Position" : "Track"} {firstTransit.from.stop && firstTransit.from.stop.platformCode}
+          </span>
         </div>
         <div className="flex flex-col items-end w-fit ml-auto">
           <span className="text-lg">{timeFromScheduledTime(lastTransit.end.scheduledTime)}</span>
@@ -384,9 +398,11 @@ function TransitSegment(props: TransitSegmentProps) {
       <div className="flex flex-row h-full">
         {transitLegs.map(leg =>
           <div className="flex flex-row items-center w-full h-full text-sm">
-            {leg.mode == "BUS" ? <BusFront className="size-5" /> : leg.mode == "TRAM" ? <TramFront className="size-5" /> : leg.mode == "RAIL" ? <TrainFront className="size-5" /> : <></>}
-            {transitLegs.length <= 2 ? <span>&nbsp;{leg.route && `${leg.route.desc}`}</span> : <></>}
-            {leg.route && <span>&nbsp;{leg.route.shortName}</span>}
+            {icons[leg.mode]}
+            <span className="ml-1">
+              {transitLegs.length <= 2 && leg.route && leg.route.desc} {leg.route && leg.route.shortName}
+              {leg.mode == "WALK" && distanceFormat(leg.distance)}
+            </span>
           </div>
         )}
       </div>
@@ -395,14 +411,75 @@ function TransitSegment(props: TransitSegmentProps) {
 }
 
 type RouteDetailsProps = {
-  
+  route: Route
 };
 function RouteDetails(props: RouteDetailsProps) {
+  const firstLeg = props.route[0];
+  const lastLeg = props.route[props.route.length - 1];
+
+  console.log(lastLeg);
+  console.log(duration(lastLeg, lastLeg));
+
   return (
     <div>
-
+      {props.route.map(leg =>
+        <div key={`${leg.start.scheduledTime} ${leg.end.scheduledTime}`}>
+          <div className="flex flex-row my-1">
+            <div className="text-xs w-10">{timeFromScheduledTime(leg.start.scheduledTime)}</div>
+            <div>
+              <div className="text-sm">
+                {leg.mode == "WALK" &&
+                  (leg == firstLeg ? "from " : leg == lastLeg ? "to " : "Walk to ")}
+                {(leg.mode != "WALK" || leg == firstLeg) ? leg.from.name : leg.to.name}
+              </div>
+              {!(leg == firstLeg || leg == lastLeg) &&
+                <div className="text-xs">
+                  {((leg.mode == "WALK" && leg.to.stop && leg.to.stop.vehicleMode != "RAIL") ||
+                    (leg.mode != "WALK" && leg.mode != "RAIL")) ? "Position" : "Track"} {leg.mode != "WALK" ?
+                      (leg.from.stop && leg.from.stop.platformCode) :
+                      (leg.to.stop && leg.to.stop.platformCode)}
+                </div>}
+              <div className="flex flex-row items-center">
+                {iconsSmall[leg.mode]}
+                <span className="text-xs ml-1">
+                  {leg.route && leg.route.desc} {leg.route && leg.route.shortName}
+                  {leg.mode == "WALK" && `Distance ${distanceFormat(leg.distance)}, walk time ${duration(leg, leg)}`}
+                </span>
+              </div>
+            </div>
+          </div>
+          {leg.mode != "WALK" &&
+            <div className="flex flex-row my-1">
+              <div className="text-xs w-10">{timeFromScheduledTime(leg.end.scheduledTime)}</div>
+              <div>
+                <div className="text-sm">{leg.to.name}</div>
+                <div className="text-xs">{leg.mode != "RAIL" ? "Position" : "Track"} {leg.to.stop && leg.to.stop.platformCode}</div>
+              </div>
+            </div>}
+          <Separator />
+        </div>)}
     </div>
   );
+}
+
+const icons: { [Key in Mode]?: ReactElement } = {
+  "WALK": <Footprints className="size-5" />,
+  "BUS": <BusFront className="size-5" />,
+  "TRAM": <TramFront className="size-5" />,
+  "RAIL": <TrainFront className="size-5" />,
+};
+
+const iconsSmall: { [Key in Mode]?: ReactElement } = {
+  "WALK": <Footprints className="size-3" />,
+  "BUS": <BusFront className="size-3" />,
+  "TRAM": <TramFront className="size-3" />,
+  "RAIL": <TrainFront className="size-3" />,
+};
+
+function distanceFormat(distance: number) {
+  return distance >= 1000 ?
+    `${(distance / 1000).toPrecision(2)} km` :
+    `${Math.round(distance)} m`;
 }
 
 export default RouteSelection;
