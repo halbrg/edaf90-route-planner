@@ -258,7 +258,7 @@ function RouteList(props: RouteListProps) {
   }
 
   return (
-    <div className="flex flex-col w-full gap-5 px-5 overflow-auto">
+    <div className="flex flex-col w-full gap-5 pt-5 px-5 overflow-auto">
       {props.routes.map(route =>
         <RouteItem
           key={keyFromRoute(route)}
