@@ -10,7 +10,7 @@ import { Alert, AlertTitle } from "./components/ui/alert";
 import { BusFront, ChevronDown, CircleAlert, Footprints, TrainFront, TramFront } from "lucide-react";
 import { Spinner } from "./components/ui/spinner";
 import { autocomplete, ensureFeatures, getPoints, search, type PeliasAutocompleteResponse, type Point, type SearchError } from "./geocoding";
-import { extractRoutes, keyFromRoute, planConnection, timeFromScheduledTime, type Route } from "./routing";
+import { duration, extractRoutes, keyFromRoute, planConnection, timeFromScheduledTime, type Route } from "./routing";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "./components/ui/collapsible";
 import { Separator } from "./components/ui/separator";
 
@@ -27,13 +27,11 @@ function RouteSelection(props: RouteSelectionProps) {
   const findRoutes = (origin: Point, destination: Point, departure: boolean, time: Date) => {
     setHasSearched(true);
     setLoading(true);
+    props.onRouteSelect(null);
     planConnection(origin, destination, departure, time)
       .then(extractRoutes)
       .then(setRoutes)
-      .then(() => {
-        setNetworkError(false);
-        props.onRouteSelect(null);
-      })
+      .then(() => setNetworkError(false))
       .catch((err: Response) => {
         setNetworkError(true);
         console.error(`Error while fetching routes: ${err}`);
@@ -42,7 +40,7 @@ function RouteSelection(props: RouteSelectionProps) {
   };
 
   return (
-    <div className="flex flex-col w-full min-w-120 lg:w-fit lg:h-dvh">
+    <div className="flex flex-col w-full h-dvh min-w-120 lg:w-fit h-dvh">
       <TravelParameters onSearch={findRoutes} />
       <Separator />
       <RouteList
@@ -81,7 +79,12 @@ function TravelParameters(props: TravelParametersProps) {
       .then(ensureFeatures)
       .then(getPoints)
       .then(({ origin, destination }: { origin: Point, destination: Point }) => {
-        props.onSearch(origin, destination, departure, new Date(`${date.toLocaleDateString("sv")} ${time}`)); // Ugly hack to copy date and time at once.
+        props.onSearch(
+          origin,
+          destination,
+          departure,
+          new Date(`${date.toLocaleDateString("sv")} ${time}`)); // Ugly hack to copy date and time at once.
+
         setError(null);
       }).catch((err: SearchError) => {
         if (err.type == "network") {
@@ -176,7 +179,7 @@ function AutocompletedSearch(props: AutocompletedSearchProps) {
         {autocompleteResults.length == 0 ? <div>No results found.</div> :
           autocompleteResults.map(result =>
             <button
-              className="text-left min-h-8 pb-4"
+              className="text-left min-h-8 pb-4 cursor-pointer"
               key={result.id}
               onClick={() => {
                 onChange(result.value);
@@ -258,7 +261,7 @@ function RouteList(props: RouteListProps) {
   }
 
   return (
-    <div className="flex flex-col w-full gap-5 pt-5 px-5 overflow-auto">
+    <div className="flex flex-col w-full h-full gap-5 pt-5 px-5 overflow-auto">
       {props.routes.map(route =>
         <RouteItem
           key={keyFromRoute(route)}
@@ -280,11 +283,11 @@ function RouteItem(props: RouteItemProps) {
   if (firstLeg == lastLeg) {
     return (
       <Collapsible open={props.selected} onOpenChange={open => props.onSelect(open ? props.route : null)}>
-        <CollapsibleTrigger className="flex flex-row w-full justify-center">
+        <CollapsibleTrigger className="flex flex-row w-full justify-center cursor-pointer">
           <TransitSegment route={props.route} />
         </CollapsibleTrigger>
         <CollapsibleContent>
-          todo
+          <RouteDetails />
         </CollapsibleContent>
       </Collapsible>
     );
@@ -292,7 +295,7 @@ function RouteItem(props: RouteItemProps) {
 
   return (
     <Collapsible open={props.selected} onOpenChange={open => props.onSelect(open ? props.route : null)}>
-      <CollapsibleTrigger className="flex flex-row w-full justify-center">
+      <CollapsibleTrigger className="flex flex-row w-full justify-center cursor-pointer">
         {firstLeg.mode == "WALK" &&
           <WalkSegment
             time={
@@ -312,7 +315,7 @@ function RouteItem(props: RouteItemProps) {
             distance={props.route[props.route.length - 1].distance} />}
       </CollapsibleTrigger>
       <CollapsibleContent>
-        todo
+        <RouteDetails />
       </CollapsibleContent>
     </Collapsible>
   );
@@ -336,57 +339,13 @@ function WalkSegment(props: WalkSegmentProps) {
   );
 }
 
-function duration(d1: Date, d2: Date) {
-  let elapsed = d1.getTime() - d2.getTime();
-
-  let days = 0;
-  while (elapsed >= (24 * 60 * 60 * 1000)) {
-    days += 1;
-    elapsed -= (24 * 60 * 60 * 1000);
-  }
-
-  let hours = 0;
-  while (elapsed >= (60 * 60 * 1000)) {
-    hours += 1;
-    elapsed -= (60 * 60 * 1000);
-  }
-
-  let minutes = 0;
-  while (elapsed >= (60 * 1000)) {
-    minutes += 1;
-    elapsed -= (60 * 1000);
-  }
-
-  let duration = "";
-  if (days > 0) {
-    duration += `${days} d`;
-  }
-  if (hours > 0) {
-    if (duration != "") {
-      duration += ", ";
-    }
-    duration += `${hours} hr`;
-  }
-  if (minutes > 0) {
-    if (duration != "") {
-      duration += ", ";
-    }
-    duration += `${minutes} min`;
-  }
-
-  return duration;
-}
-
 type TransitSegmentProps = {
   route: Route;
 };
 function TransitSegment(props: TransitSegmentProps) {
   if (props.route.length == 1) {
     const leg = props.route[0];
-    const time = duration(
-      new Date(leg.end.scheduledTime),
-      new Date(leg.start.scheduledTime)
-    );
+    const time = duration(leg, leg);
     
     return (
       <div className="w-full p-1 px-4 h-12">
@@ -409,10 +368,7 @@ function TransitSegment(props: TransitSegmentProps) {
     return null;
   }
 
-  const time = duration(
-    new Date(lastTransit.end.scheduledTime),
-    new Date(firstTransit.start.scheduledTime))
-
+  const time = duration(firstTransit, lastTransit);
   return (
     <div className="flex flex-col w-full h-20">
       <div className="flex flex-row">
@@ -436,7 +392,17 @@ function TransitSegment(props: TransitSegmentProps) {
       </div>
     </div>
   );
+}
 
+type RouteDetailsProps = {
+  
+};
+function RouteDetails(props: RouteDetailsProps) {
+  return (
+    <div>
+
+    </div>
+  );
 }
 
 export default RouteSelection;

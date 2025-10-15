@@ -177,6 +177,49 @@ function timeFromScheduledTime(scheduledTime: string) {
   return new Date(scheduledTime).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit"});
 }
 
+function duration(start: Leg, end: Leg) {
+  const startTime = new Date(start.start.scheduledTime).getTime();
+  const endTime = new Date(end.end.scheduledTime).getTime();
+  let elapsed = endTime - startTime;
+
+  let days = 0;
+  while (elapsed >= (24 * 60 * 60 * 1000)) {
+    days += 1;
+    elapsed -= (24 * 60 * 60 * 1000);
+  }
+
+  let hours = 0;
+  while (elapsed >= (60 * 60 * 1000)) {
+    hours += 1;
+    elapsed -= (60 * 60 * 1000);
+  }
+
+  let minutes = 0;
+  while (elapsed >= (60 * 1000)) {
+    minutes += 1;
+    elapsed -= (60 * 1000);
+  }
+
+  let duration = "";
+  if (days > 0) {
+    duration += `${days} d`;
+  }
+  if (hours > 0) {
+    if (duration != "") {
+      duration += ", ";
+    }
+    duration += `${hours} hr`;
+  }
+  if (minutes > 0) {
+    if (duration != "") {
+      duration += ", ";
+    }
+    duration += `${minutes} min`;
+  }
+
+  return duration;
+}
+
 export {
   type PlanConnection,
   type Leg,
@@ -184,5 +227,6 @@ export {
   planConnection,
   extractRoutes,
   keyFromRoute,
-  timeFromScheduledTime
+  timeFromScheduledTime,
+  duration,
 };
