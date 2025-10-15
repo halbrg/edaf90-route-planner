@@ -176,7 +176,7 @@ function AutocompletedSearch(props: AutocompletedSearchProps) {
         {autocompleteResults.length == 0 ? <div>No results found.</div> :
           autocompleteResults.map(result =>
             <button
-              className="text-left min-h-8"
+              className="text-left min-h-8 pb-4"
               key={result.id}
               onClick={() => {
                 onChange(result.value);
