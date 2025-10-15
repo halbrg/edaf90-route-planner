@@ -12,6 +12,7 @@ import { Spinner } from "./components/ui/spinner";
 import { autocomplete, ensureFeatures, getPoints, search, type PeliasAutocompleteResponse, type Point, type SearchError } from "./geocoding";
 import { extractRoutes, keyFromRoute, planConnection, timeFromScheduledTime, type Route } from "./routing";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "./components/ui/collapsible";
+import { Separator } from "./components/ui/separator";
 
 type RouteSelectionProps = {
   selectedRoute: Route | null;
@@ -43,6 +44,7 @@ function RouteSelection(props: RouteSelectionProps) {
   return (
     <div className="flex flex-col w-full min-w-120 lg:w-fit lg:h-dvh">
       <TravelParameters onSearch={findRoutes} />
+      <Separator />
       <RouteList
         routes={routes}
         selectedRoute={props.selectedRoute}
@@ -94,7 +96,7 @@ function TravelParameters(props: TravelParametersProps) {
   const departureId = useId();
 
   return (
-    <form className="p-5 px-8" onSubmit={onSubmit}>
+    <form className="p-8" onSubmit={onSubmit}>
       {error ?
         <Alert className="mb-5" variant="destructive">
           <CircleAlert />
@@ -111,7 +113,7 @@ function TravelParameters(props: TravelParametersProps) {
           </div>
           <DateTimeSelection date={date} onDateChange={setDate} time={time} onTimeChange={setTime} />
         </div>
-        <Button className="self-end w-full lg:w-35" type="submit">Search</Button>
+        <Button className="w-full" type="submit">Search</Button>
       </div>
     </form>
   );
