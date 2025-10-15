@@ -1,4 +1,4 @@
-import polyline  from "@mapbox/polyline";
+import polyline from "@mapbox/polyline";
 import type { Route } from "./routing";
 
 function getRoutePoints(route: Route | null): [number, number][] {
@@ -14,4 +14,29 @@ function getRoutePoints(route: Route | null): [number, number][] {
   return allPoints;
 }
 
-export {getRoutePoints}
+function getRouteColor(route: Route | null): string {
+  if (!route) return "";
+  let currentColor: string = "";
+
+  route.forEach((leg) => {
+    switch (leg.mode) {
+      case "BUS":
+        currentColor = "green";
+        break;
+      case "RAIL":
+        currentColor = "red";
+        break;
+      case "TRAM":
+        currentColor = "gray";
+        break;
+      case "WALK":
+        currentColor = "black";
+        break;
+      default:
+        currentColor = "blue";
+    }
+  });
+  return currentColor;
+}
+
+export { getRoutePoints, getRouteColor };
