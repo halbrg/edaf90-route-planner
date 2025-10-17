@@ -143,13 +143,15 @@ function AutocompletedSearch(props: AutocompletedSearchProps) {
   };
 
   useEffect(() => {
+    let ignore = false;
     if (throttledValue) {
       autocomplete(throttledValue)
         .then((data: PeliasAutocompleteResponse) => {
-          setAutocompleteResults(data.features.map(feature => { return { value: `${feature.properties.name}, ${feature.properties.county}`, id: feature.properties.id }; }));
+          !ignore && setAutocompleteResults(data.features.map(feature => { return { value: `${feature.properties.name}, ${feature.properties.county}`, id: feature.properties.id }; }));
         }, (err: Response) => {
           console.error(`Error while fetching autocomplete results: ${err}`);
         });
+      return () => {ignore = true};
     } else {
       setAutocompleteResults([]);
     }
@@ -416,9 +418,6 @@ type RouteDetailsProps = {
 function RouteDetails(props: RouteDetailsProps) {
   const firstLeg = props.route[0];
   const lastLeg = props.route[props.route.length - 1];
-
-  console.log(lastLeg);
-  console.log(duration(lastLeg, lastLeg));
 
   return (
     <div>
