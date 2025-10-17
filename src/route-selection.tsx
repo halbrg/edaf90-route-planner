@@ -171,6 +171,7 @@ function AutocompletedSearch(props: AutocompletedSearchProps) {
           onChange={e => onChange(e.currentTarget.value)}
           placeholder={props.label}
           aria-haspopup={autocompleteOpen}
+          aria-label={props.label}
           required />
       </PopoverTrigger>
       <PopoverContent
