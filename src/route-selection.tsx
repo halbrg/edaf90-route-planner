@@ -10,7 +10,7 @@ import { Alert, AlertTitle } from "./components/ui/alert";
 import { BusFront, ChevronDown, CircleAlert, Clock, Footprints, TrainFront, TramFront } from "lucide-react";
 import { Spinner } from "./components/ui/spinner";
 import { autocomplete, ensureFeatures, getPoints, search, type PeliasAutocompleteResponse, type Point, type SearchError } from "./geocoding";
-import { duration, extractRoutes, keyFromRoute, planConnection, timeFromScheduledTime, type Mode, type Route } from "./routing";
+import { duration, extractRoutes, keyFromLeg, keyFromRoute, planConnection, timeFromScheduledTime, type Mode, type Route } from "./routing";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "./components/ui/collapsible";
 import { Separator } from "./components/ui/separator";
 
@@ -400,7 +400,7 @@ function TransitSegment(props: TransitSegmentProps) {
       </div>
       <div className="flex flex-row h-full">
         {transitLegs.map(leg =>
-          <div className="flex flex-row items-center w-full h-full text-sm">
+          <div className="flex flex-row items-center w-full h-full text-sm" key={keyFromLeg(leg)}>
             {icons[leg.mode]}
             <span className="ml-1">
               {transitLegs.length <= 2 && leg.route && leg.route.desc} {leg.route && leg.route.shortName}
@@ -423,7 +423,7 @@ function RouteDetails(props: RouteDetailsProps) {
   return (
     <div>
       {props.route.map(leg =>
-        <div key={`${leg.start.scheduledTime} ${leg.end.scheduledTime}`}>
+        <div key={keyFromLeg(leg)}>
           <div className="flex flex-row my-2">
             <div className="text-xs w-10">{timeFromScheduledTime(leg.start.scheduledTime)}</div>
             <div>

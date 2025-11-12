@@ -179,6 +179,10 @@ function keyFromRoute(route: Route) {
   return `${route[0].start.scheduledTime} ${distance} ${route[route.length - 1].end.scheduledTime}`;
 }
 
+function keyFromLeg(leg: Leg) {
+  return `${leg.start.scheduledTime} ${leg.distance} ${leg.end.scheduledTime}`;
+}
+
 function timeFromScheduledTime(scheduledTime: string) {
   return new Date(scheduledTime).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
 }
@@ -231,6 +235,7 @@ export {
   planConnection,
   extractRoutes,
   keyFromRoute,
+  keyFromLeg,
   timeFromScheduledTime,
   duration,
 };
